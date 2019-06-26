@@ -9,7 +9,7 @@
     using System.Threading;
     using System.Threading.Tasks;
 
-    public class SchedulerHostedService : BackgroundService, ISchedulerHostedService
+    internal class SchedulerHostedService : BackgroundService, ISchedulerHostedService
     {
         private readonly ILogger logger;
         private Task executingTask;
@@ -17,20 +17,23 @@
 
         public event EventHandler<UnobservedTaskExceptionEventArgs> UnobservedTaskException;
 
-        private readonly List<SchedulerTask> scheduledTasks = new List<SchedulerTask>();
+        private readonly SchedulerTaskList schedulerTasks;
+
 
         public SchedulerHostedService(
             IEnumerable<IScheduledTask> scheduledTasks,
+            SchedulerTaskList schedulerTasks,
             ILogger<SchedulerHostedService> logger
         )
         {
             this.logger = logger;
+            this.schedulerTasks = schedulerTasks;
 
             var referenceTime = DateTime.UtcNow;
 
             foreach (var scheduledTask in scheduledTasks)
             {
-                this.scheduledTasks.Add(new SchedulerTask
+                this.schedulerTasks.Add(new SchedulerTask
                 {
                     CronExpression = CronExpression.Parse(
                         expression: scheduledTask.Options.Schedule,
@@ -92,7 +95,7 @@
             // [2] 00:01:01
             var referenceTime = DateTime.UtcNow;
 
-            var tasksThatShouldRun = this.scheduledTasks
+            var tasksThatShouldRun = this.schedulerTasks
                 .Where(t => t.ShouldRun(referenceTime))
                 .ToList();
                 
@@ -127,7 +130,7 @@
             
             // [1] 00:01:00 < 00:00:00 == false (super)
             // [2] 00:02:00 < 00:01:01 == false (super)
-            var nextTask = this.scheduledTasks
+            var nextTask = this.schedulerTasks
                 .Where(t => !t.ShouldRun(referenceTime))
                 .OrderBy(d => d.NextStartTime)
                 .First();

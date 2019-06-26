@@ -4,7 +4,6 @@
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.DependencyInjection.Extensions;
-    using Microsoft.Extensions.Hosting;
 
     public static class SchedulerExtensions
     {
@@ -87,6 +86,24 @@
             return services.AddService<TScheduledTask>(options);
         }
 
+        public static IServiceCollection AddScheduler(
+            this IServiceCollection services
+        )
+        {
+            services.AddSingleton<Scheduler>();
+            services.AddSingleton<SchedulerTaskList>(new SchedulerTaskList());
+            return services.AddSchedulerHostedService<SchedulerHostedService>();
+        }
+
+        public static IServiceCollection AddSchedulerHostedService<THostedService>(
+            this IServiceCollection services
+        )
+            where THostedService : class, ISchedulerHostedService
+        {
+            services.AddHostedService<THostedService>();
+            return services;
+        }
+
         private static IServiceCollection AddService<TScheduledTask>(
             this IServiceCollection services,
             IScheduledTaskOptions<TScheduledTask> options
@@ -98,7 +115,6 @@
                 services.AddSingleton<IScheduledTaskOptions<TScheduledTask>>(options);
             }
 
-            services.TryAddSingleton<ISchedulerHostedService, SchedulerHostedService>();
             return services.AddSingleton<IScheduledTask, TScheduledTask>();
         }
     }
